@@ -35,3 +35,227 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 <header>
  <div class="top"><div class="brand"><div class="logo">▣</div> WordWise</div><span class="status">● Meanings + pictures</span></div>
  <h1>Learn words. Build confidence.</h1>
+ <p>Upload a PDF, and every word gets an English meaning, an example and a small picture so students learn faster.</p>
+</header>
+<main>
+ <nav class="tabs" aria-label="Main navigation">
+  <button class="active" data-tab="home">Home</button><button data-tab="words">My words</button><button data-tab="flashcards">Flashcards</button><button data-tab="quiz">Quiz</button>
+ </nav>
+ <section id="home">
+  <div class="grid">
+   <div class="stat"><strong id="totalCount">5</strong><span>Total words</span></div>
+   <div class="stat"><strong id="learnedCount">0</strong><span>Marked learned</span></div>
+   <div class="stat"><strong id="remainingCount">5</strong><span>To practise</span></div>
+  </div>
+  <div class="panel">
+   <h2>1. Upload your PDF book</h2>
+   <div class="upload"><div style="font-size:30px">📄</div><strong>Choose a text-based PDF</strong><p class="muted">Select a PDF from your device. Scanned image PDFs need OCR, which is not included.</p><input id="pdfFile" type="file" accept="application/pdf"><div id="pdfStatus" class="muted">No PDF selected yet.</div></div>
+   <p class="muted">Internet is needed to load PDF.js, word meanings (Free Dictionary API) and pictures (Wikipedia). Everything is saved in this browser after the first load.</p>
+  </div>
+  <div class="panel">
+   <div class="row"><h2>2. Choose section size</h2><select id="groupSize"><option value="10">10 words per section</option><option value="30" selected>30 words per section</option></select></div>
+   <p class="muted">Your extracted vocabulary will be split into manageable groups.</p>
+   <div id="sectionGrid" class="sections"></div>
+  </div>
+  <div class="panel">
+   <div class="row"><h2>3. Your learning progress</h2><span id="progressText" class="muted">0% complete</span></div>
+   <div class="progress"><span id="progressBar"></span></div>
+   <p class="muted">Your words and learning status are saved in this browser on this device.</p>
+  </div>
+  <div class="panel settings">
+   <h2>Optional: Google pictures</h2>
+   <p class="muted">By default pictures come from Wikipedia (free). For Google Images results, add a free <b>Google Custom Search API key</b> and <b>Search Engine ID (cx)</b> with image search turned on. Leave empty to skip.</p>
+   <input id="gKey" placeholder="Google API key" autocomplete="off">
+   <input id="gCx" placeholder="Search engine ID (cx)" autocomplete="off">
+   <div class="actions" style="justify-content:flex-start"><button id="saveGoogle" class="secondary">Save Google settings</button><span id="gStatus" class="muted"></span></div>
+  </div>
+ </section>
+ <section id="words" class="hidden">
+  <div class="row"><div><h2>My vocabulary</h2><p class="muted" id="wordSub">Sample words to explore the app.</p></div><button class="secondary" id="resetDemo">Restore sample words</button></div>
+  <div id="wordList" class="word-list"></div>
+ </section>
+ <section id="flashcards" class="hidden">
+  <div class="panel flash">
+   <span class="muted" id="cardPosition">Card 1</span>
+   <div id="cardPic"></div>
+   <div class="big" id="cardWord">Abundant</div>
+   <div id="cardMeaning" class="meaning hidden"></div>
+   <p class="muted" id="cardHint">Look at the picture, think of the meaning, then reveal it.</p>
+   <a id="cardGoogle" target="_blank" rel="noopener">🔍 More pictures on Google</a>
+   <div class="actions"><button id="revealBtn">Show meaning</button><button class="secondary" id="learnBtn">Mark as learned ✓</button></div>
+  </div>
+  <div class="actions"><button class="secondary" id="prevBtn">← Previous</button><button id="nextBtn">Next →</button></div>
+ </section>
+ <section id="quiz" class="hidden">
+  <div class="panel"><span class="muted" id="quizPosition">Question</span><div id="quizPic" style="margin:10px 0"></div><h2 id="quizQuestion">Loading…</h2><div id="quizOptions"></div><p id="quizFeedback" aria-live="polite"></p><button id="nextQuestion" class="hidden">Next question →</button></div>
+ </section>
+</main>
+<footer>WordWise · Meanings: Free Dictionary API · Pictures: Wikipedia / Google (optional)</footer>
+<script>
+const sample=[
+ {word:"Abundant",meaning:"Existing in large quantities; plentiful.",example:"The garden has abundant flowers.",synonym:"Plentiful"},
+ {word:"Benevolent",meaning:"Kind, generous and willing to help others.",example:"The benevolent teacher helped every student.",synonym:"Kind"},
+ {word:"Cautious",meaning:"Careful to avoid danger or mistakes.",example:"Be cautious when crossing the road.",synonym:"Careful"},
+ {word:"Diligent",meaning:"Showing care and effort in your work.",example:"She is a diligent student.",synonym:"Hardworking"},
+ {word:"Eloquent",meaning:"Fluent and persuasive in speaking or writing.",example:"He gave an eloquent speech.",synonym:"Expressive"}
+];
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let words=ls.get("ww_words",null)||sample;
+let learned=new Set(ls.get("ww_learned",[]));
+let cache=ls.get("ww_cache",{});
+let gKey=ls.get("ww_gkey",""),gCx=ls.get("ww_gcx","");
+let cardIndex=0,cardShown=false,quizAnswered=false,selectedSection=0,quizToken=0;
+const $=id=>document.getElementById(id);
+const key=w=>w.toLowerCase();
+function save(){ls.set("ww_words",words);ls.set("ww_learned",[...learned]);renderAll()}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const googleUrl=w=>"https://www.google.com/search?tbm=isch&q="+encodeURIComponent(w+" meaning");
+
+/* ---------- Meaning + picture lookup ---------- */
+const pending={},failed=new Set(),queue=[];let active=0;
+function enqueue(fn){return new Promise(res=>{queue.push(()=>fn().then(res,res));pump()})}
+function pump(){while(active<4&&queue.length){active++;queue.shift()().finally(()=>{active--;pump()})}}
+function info(w){
+ const c=cache[key(w.word)]||{};
+ const own=w.meaning&&!/^Meaning not yet/.test(w.meaning);
+ return{word:w.word,meaning:own?w.meaning:(c.meaning||""),example:w.example||c.example||"",synonym:w.synonym||c.synonym||"",pos:c.pos||"",img:c.img||"",done:!!c.done,failed:failed.has(key(w.word))};
+}
+async function fetchJSON(url){const r=await fetch(url);if(!r.ok)return null;return r.json()}
+function lookup(w){
+ const k=key(w.word);
+ if(cache[k]&&cache[k].done)return Promise.resolve();
+ if(pending[k])return pending[k];
+ pending[k]=enqueue(async()=>{
+  const r={};let netFail=false;
+  try{
+   const d=await fetchJSON("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(k));
+   if(Array.isArray(d)&&d[0]){
+    const m=d[0].meanings||[];
+    if(m[0]){r.pos=m[0].partOfSpeech||"";r.meaning=(m[0].definitions[0]||{}).definition||"";
+     for(const mm of m){for(const df of mm.definitions){if(df.example&&!r.example){r.example=df.example}}}
+     const syn=[].concat(...m.map(x=>x.synonyms||[]),...m.map(x=>[].concat(...x.definitions.map(y=>y.synonyms||[]))));
+     if(syn.length)r.synonym=syn[0][0].toUpperCase()+syn[0].slice(1);}
+   }
+  }catch(e){netFail=true}
+  try{
+   if(gKey&&gCx){
+    const g=await fetchJSON("https://www.googleapis.com/customsearch/v1?key="+encodeURIComponent(gKey)+"&cx="+encodeURIComponent(gCx)+"&searchType=image&safe=active&num=1&q="+encodeURIComponent(w.word));
+    if(g&&g.items&&g.items[0])r.img=g.items[0].image&&g.items[0].image.thumbnailLink||g.items[0].link;
+   }
+   if(!r.img){
+    const p=await fetchJSON("https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(k)+"&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=400&format=json&origin=*");
+    const pages=p&&p.query&&Object.values(p.query.pages||{}).sort((a,b)=>a.index-b.index);
+    const hit=pages&&pages.find(x=>x.thumbnail);
+    if(hit)r.img=hit.thumbnail.source;
+   }
+  }catch(e){netFail=true}
+  if(netFail&&!r.meaning&&!r.img){failed.add(k)}else{failed.delete(k);r.done=true;cache[k]=r;ls.set("ww_cache",cache)}
+  delete pending[k];refresh();
+ });
+ return pending[k];
+}
+let rt;function refresh(){clearTimeout(rt);rt=setTimeout(()=>{if(!$("words").classList.contains("hidden"))renderWords();if(!$("flashcards").classList.contains("hidden"))renderCard()},150)}
+
+/* ---------- Rendering ---------- */
+function picHTML(i,big){
+ if(i.img)return`<img class="pic ${big?"big":""}" src="${escapeHTML(i.img)}" alt="Picture for ${escapeHTML(i.word)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;nopic ${big?"big":""}&quot;>🖼️</div>'">`;
+ return`<div class="nopic ${big?"big":""}">${i.done?"🖼️":"⏳"}</div>`;
+}
+function renderAll(){
+ $("totalCount").textContent=words.length;$("learnedCount").textContent=learned.size;$("remainingCount").textContent=Math.max(0,words.length-learned.size);
+ let pct=words.length?Math.round(learned.size/words.length*100):0;$("progressText").textContent=pct+"% complete";$("progressBar").style.width=pct+"%";
+ renderSections();renderWords();renderCard();
+}
+function renderSections(){
+ let n=Number($("groupSize").value),count=Math.ceil(words.length/n);
+ $("sectionGrid").innerHTML=count?Array.from({length:count},(_,i)=>`<div class="section-card ${i===selectedSection?"selected":""}" data-section="${i}"><strong>Section ${i+1}</strong><span class="muted">Words ${i*n+1}–${Math.min((i+1)*n,words.length)}</span></div>`).join(""):'<p class="muted">Upload a PDF to create sections.</p>';
+ document.querySelectorAll("[data-section]").forEach(el=>el.onclick=()=>{selectedSection=Number(el.dataset.section);renderSections();showTab("words")});
+}
+function renderWords(){
+ let n=Number($("groupSize").value),start=selectedSection*n,subset=words.slice(start,start+n);
+ $("wordSub").textContent=`Section ${selectedSection+1} · ${subset.length} words`;
+ $("wordList").innerHTML=subset.map((w,i)=>{
+  const x=info(w);lookup(w);
+  const meaning=x.meaning||(x.failed?"Could not load the meaning. Check your internet connection.":(x.done?"No meaning found for this word.":"Loading meaning…"));
+  return`<article class="word-card"><div class="wc">${picHTML(x)}<div><div class="row"><h3>${start+i+1}. ${escapeHTML(x.word)}</h3><span>${learned.has(w.word)?"✓":""}</span></div>${x.pos?`<p><i>${escapeHTML(x.pos)}</i></p>`:""}<p style="color:var(--ink)">${escapeHTML(meaning)}</p>${x.example?`<p><i>Example: ${escapeHTML(x.example)}</i></p>`:""}${x.synonym?`<p>Synonym: ${escapeHTML(x.synonym)}</p>`:""}<a href="${googleUrl(x.word)}" target="_blank" rel="noopener">🔍 Google pictures</a></div></div></article>`}).join("")||'<p class="muted">No words in this section yet.</p>';
+}
+function renderCard(){
+ if(!words.length){$("cardWord").textContent="No words yet";$("cardMeaning").textContent="Upload a PDF to begin.";$("cardPic").innerHTML="";return}
+ cardIndex=Math.max(0,Math.min(cardIndex,words.length-1));const w=words[cardIndex],x=info(w);
+ lookup(w);if(words[cardIndex+1])lookup(words[cardIndex+1]);
+ $("cardPosition").textContent=`Card ${cardIndex+1} of ${words.length}`;$("cardWord").textContent=x.word;
+ $("cardPic").innerHTML=picHTML(x,true);
+ const m=x.meaning||(x.failed?"Could not load the meaning. Check your internet.":(x.done?"No meaning found.":"Loading meaning…"));
+ $("cardMeaning").textContent=[m,x.example?"Example: "+x.example:"",x.synonym?"Synonym: "+x.synonym:""].filter(Boolean).join(" ");
+ $("cardMeaning").classList.toggle("hidden",!cardShown);$("cardHint").classList.toggle("hidden",cardShown);
+ $("revealBtn").textContent=cardShown?"Hide meaning":"Show meaning";$("cardGoogle").href=googleUrl(x.word);
+}
+function showTab(name){document.querySelectorAll("main>section").forEach(s=>s.classList.add("hidden"));$(name).classList.remove("hidden");document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));if(name==="quiz")renderQuiz();if(name==="flashcards")renderCard();if(name==="words")renderWords()}
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+$("groupSize").onchange=()=>{selectedSection=0;renderSections();renderWords()};
+$("revealBtn").onclick=()=>{cardShown=!cardShown;renderCard()};
+$("prevBtn").onclick=()=>{cardIndex=(cardIndex-1+words.length)%words.length;cardShown=false;renderCard()};
+$("nextBtn").onclick=()=>{cardIndex=(cardIndex+1)%words.length;cardShown=false;renderCard()};
+$("learnBtn").onclick=()=>{if(words[cardIndex]){learned.add(words[cardIndex].word);cardIndex=(cardIndex+1)%words.length;cardShown=false;save()}};
+$("resetDemo").onclick=()=>{words=sample;learned.clear();selectedSection=0;cardIndex=0;save()};
+$("saveGoogle").onclick=()=>{gKey=$("gKey").value.trim();gCx=$("gCx").value.trim();ls.set("ww_gkey",gKey);ls.set("ww_gcx",gCx);
+ Object.keys(cache).forEach(k=>{if(!cache[k].img)delete cache[k].done});ls.set("ww_cache",cache);
+ $("gStatus").textContent=gKey&&gCx?"Saved. Google pictures will be used for new words.":"Cleared. Wikipedia pictures will be used.";};
+$("gKey").value=gKey;$("gCx").value=gCx;
+
+/* ---------- Quiz (built from your own words) ---------- */
+function shorten(s){s=String(s);return s.length>110?s.slice(0,107).trim()+"…":s}
+async function renderQuiz(){
+ const token=++quizToken;quizAnswered=false;
+ $("quizFeedback").textContent="";$("nextQuestion").classList.add("hidden");$("quizOptions").innerHTML="";$("quizPic").innerHTML="";
+ if(words.length<3){$("quizQuestion").textContent="Add at least 3 words to start the quiz.";$("quizPosition").textContent="";return}
+ $("quizQuestion").textContent="Loading question…";
+ for(let attempt=0;attempt<6;attempt++){
+  const pick=()=>words[Math.floor(Math.random()*words.length)];
+  const target=pick();const others=[];let guard=0;
+  while(others.length<2&&guard++<50){const o=pick();if(o.word!==target.word&&!others.some(z=>z.word===o.word))others.push(o)}
+  if(others.length<2)continue;
+  await Promise.all([target,...others].map(lookup));
+  if(token!==quizToken)return;
+  const t=info(target),os=others.map(info);
+  if(!t.meaning||os.some(o=>!o.meaning||o.meaning===t.meaning))continue;
+  const opts=[t,...os].map(o=>({text:shorten(o.meaning),ok:o.word===t.word})).sort(()=>Math.random()-.5);
+  $("quizPosition").textContent="Choose the correct meaning";
+  $("quizPic").innerHTML=picHTML(t,true);
+  $("quizQuestion").textContent=`What does “${t.word}” mean?`;
+  $("quizOptions").innerHTML=opts.map((o,i)=>`<button class="option" data-i="${i}">${escapeHTML(o.text)}</button>`).join("");
+  document.querySelectorAll("#quizOptions .option").forEach(b=>b.onclick=()=>{
+   if(quizAnswered)return;quizAnswered=true;const o=opts[Number(b.dataset.i)];
+   document.querySelectorAll("#quizOptions .option").forEach((bb,i)=>{if(opts[i].ok)bb.classList.add("correct")});
+   if(!o.ok)b.classList.add("wrong");
+   $("quizFeedback").textContent=o.ok?"Correct! Well done.":"Not quite. The correct answer is highlighted.";
+   $("quizFeedback").style.color=o.ok?"#218765":"#b54747";$("nextQuestion").classList.remove("hidden");
+  });
+  return;
+ }
+ if(token===quizToken){$("quizQuestion").textContent="Could not load meanings. Check your internet connection and try again.";$("nextQuestion").classList.remove("hidden")}
+}
+$("nextQuestion").onclick=()=>renderQuiz();
+
+/* ---------- PDF import ---------- */
+$("pdfFile").addEventListener("change",async e=>{
+ const file=e.target.files[0];if(!file)return;
+ $("pdfStatus").textContent="Reading PDF…";
+ try{
+  if(!window.pdfjsLib){
+   await new Promise((resolve,reject)=>{let s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});
+   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const data=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data}).promise;let text="";
+  for(let p=1;p<=pdf.numPages;p++){let page=await pdf.getPage(p),content=await page.getTextContent();text+=" "+content.items.map(x=>x.str).join(" ")}
+  const stop=new Set(("the a an and or but if then than to of in on at for from by with is are was were be been being this that these those it its as into about over under after before not no yes can could should would will may might do does did have has had i you he she they we them his her their our your what when where which who whom whose why how all any both each few more most other some such only own same so too very just also there here out up down off again once".split(" ")));
+  let freq=new Map();for(let token of text.match(/[A-Za-z][A-Za-z'-]{3,}/g)||[]){let w=token.toLowerCase().replace(/^[-']+|[-']+$/g,"");if(w.length>3&&!stop.has(w))freq.set(w,(freq.get(w)||0)+1)}
+  let extracted=[...freq.entries()].sort((a,b)=>b[1]-a[1]).map(([word])=>({word:word[0].toUpperCase()+word.slice(1),meaning:"",example:""}));
+  if(!extracted.length)throw new Error("No selectable text found. This may be a scanned PDF.");
+  words=extracted;learned.clear();cardIndex=0;cardShown=false;selectedSection=0;save();$("pdfStatus").textContent=`Imported ${words.length} unique words from ${pdf.numPages} page(s). Meanings and pictures load automatically.`;showTab("words");
+ }catch(err){$("pdfStatus").textContent="Could not extract PDF text: "+err.message+". If this is a scanned PDF, OCR is required."}
+});
+renderAll();
+</script>
+</body>
+</html>
