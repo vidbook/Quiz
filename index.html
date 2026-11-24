@@ -9,6 +9,7 @@
 :root{--navy:#172c4a;--green:#218765;--mint:#e3f4ed;--bg:#f3f6fa;--ink:#1d3048;--muted:#66758a;--line:#e2e8f0;--white:#fff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
 button,input,select{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 15px;background:var(--green);color:#fff;font-weight:650}button.secondary{background:#eef2f6;color:var(--ink);border:1px solid var(--line)}button:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--green);font-weight:600;font-size:13px}
 header{background:var(--navy);color:#fff;padding:22px max(18px,calc((100% - 1120px)/2));}
 .top{display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:21px}.logo{width:39px;height:39px;border-radius:12px;background:#d9f3e8;color:var(--navy);display:grid;place-items:center;font-size:21px}
 header h1{font-size:clamp(25px,4vw,38px);line-height:1.12;margin:28px 0 8px;max-width:650px}header p{color:#cad6e4;margin:0;max-width:650px}
@@ -17,8 +18,14 @@ main{max-width:1120px;margin:25px auto;padding:0 18px 50px}.tabs{display:flex;ga
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.stat,.panel,.word-card,.section-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:18px;box-shadow:0 4px 16px #18324a08}.stat strong{display:block;font-size:29px;color:var(--navy)}.stat span,.muted{color:var(--muted);font-size:13px}
 .panel{margin-top:16px}.panel h2{font-size:19px;margin:0 0 12px}.upload{border:1.5px dashed #a9b8c8;background:#f9fbfd;border-radius:14px;padding:22px;text-align:center}.upload input{max-width:100%;margin:12px auto}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.progress{height:8px;border-radius:9px;background:#e9eef3;overflow:hidden}.progress span{display:block;height:100%;background:var(--green);width:0}
 .sections{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.section-card{cursor:pointer}.section-card.selected{border:2px solid var(--green);padding:17px}.section-card strong{display:block}.word-list{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.word-card h3{margin:0 0 4px}.word-card p{margin:5px 0;color:var(--muted);font-size:13px}
-.flash{max-width:620px;margin:10px auto;text-align:center;padding:34px 22px;min-height:260px;display:flex;flex-direction:column;justify-content:center;align-items:center}.flash .big{font-size:clamp(30px,6vw,43px);font-weight:800;color:var(--navy);margin:14px 0}.flash .meaning{font-size:17px;max-width:480px}.actions{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:15px}
-.option{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);margin:9px 0}.option.chosen{border-color:var(--green);background:var(--mint)}
+.word-card .wc{display:flex;gap:12px;align-items:flex-start}.word-card .wc>div{flex:1;min-width:0}
+.pic{width:90px;height:90px;border-radius:12px;object-fit:cover;background:#eef2f6;flex:none}
+.pic.big{width:min(230px,70%);height:auto;max-height:190px;aspect-ratio:4/3;margin:0 auto}
+.nopic{width:90px;height:90px;border-radius:12px;background:#eef2f6;display:grid;place-items:center;font-size:28px;flex:none}
+.nopic.big{width:120px;height:90px;margin:0 auto}
+.flash{max-width:620px;margin:10px auto;text-align:center;padding:30px 22px;min-height:260px;display:flex;flex-direction:column;justify-content:center;align-items:center}.flash .big{font-size:clamp(30px,6vw,43px);font-weight:800;color:var(--navy);margin:12px 0}.flash .meaning{font-size:17px;max-width:480px}.actions{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:15px}
+.option{display:block;width:100%;text-align:left;background:#fff;color:var(--ink);border:1px solid var(--line);margin:9px 0}.option.correct{border-color:var(--green);background:var(--mint)}.option.wrong{border-color:#b54747;background:#fbeaea}
+.settings input{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;margin:6px 0}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 .hidden{display:none!important}
 @media(max-width:700px){.grid{grid-template-columns:1fr 1fr}.sections{grid-template-columns:repeat(2,1fr)}.word-list{grid-template-columns:1fr}header{padding:18px}main{margin-top:17px}.stat:last-child{grid-column:span 2}}
@@ -26,121 +33,5 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:22px}
 </head>
 <body>
 <header>
- <div class="top"><div class="brand"><div class="logo">▣</div> WordWise</div><span class="status">● Offline-first learning</span></div>
+ <div class="top"><div class="brand"><div class="logo">▣</div> WordWise</div><span class="status">● Meanings + pictures</span></div>
  <h1>Learn words. Build confidence.</h1>
- <p>Turn vocabulary into small learning steps. Upload a PDF, organize words into sections, and practise with flashcards and quizzes.</p>
-</header>
-<main>
- <nav class="tabs" aria-label="Main navigation">
-  <button class="active" data-tab="home">Home</button><button data-tab="words">My words</button><button data-tab="flashcards">Flashcards</button><button data-tab="quiz">Quiz</button>
- </nav>
- <section id="home">
-  <div class="grid">
-   <div class="stat"><strong id="totalCount">5</strong><span>Total words</span></div>
-   <div class="stat"><strong id="learnedCount">0</strong><span>Marked learned</span></div>
-   <div class="stat"><strong id="remainingCount">5</strong><span>To practise</span></div>
-  </div>
-  <div class="panel">
-   <h2>1. Upload your PDF book</h2>
-   <div class="upload"><div style="font-size:30px">📄</div><strong>Choose a text-based PDF</strong><p class="muted">Select a PDF from your device. Scanned image PDFs need OCR, which is not included in this starter file.</p><input id="pdfFile" type="file" accept="application/pdf"><div id="pdfStatus" class="muted">No PDF selected yet.</div></div>
-   <p class="muted">PDF text extraction uses PDF.js. On first use, this starter loads PDF.js from a CDN, so an internet connection is needed for that first load. For fully offline PDF extraction, download PDF.js and keep its files beside this HTML file.</p>
-  </div>
-  <div class="panel">
-   <div class="row"><h2>2. Choose section size</h2><select id="groupSize"><option value="10">10 words per section</option><option value="30" selected>30 words per section</option></select></div>
-   <p class="muted">Your extracted vocabulary will be split into manageable groups.</p>
-   <div id="sectionGrid" class="sections"></div>
-  </div>
-  <div class="panel">
-   <div class="row"><h2>3. Your learning progress</h2><span id="progressText" class="muted">0% complete</span></div>
-   <div class="progress"><span id="progressBar"></span></div>
-   <p class="muted">Your words and learning status are saved in this browser on this device.</p>
-  </div>
- </section>
- <section id="words" class="hidden">
-  <div class="row"><div><h2>My vocabulary</h2><p class="muted" id="wordSub">Sample words to explore the app.</p></div><button class="secondary" id="resetDemo">Restore sample words</button></div>
-  <div id="wordList" class="word-list"></div>
- </section>
- <section id="flashcards" class="hidden">
-  <div class="panel flash">
-   <span class="muted" id="cardPosition">Card 1</span><div class="big" id="cardWord">Abundant</div>
-   <div id="cardMeaning" class="meaning hidden"></div>
-   <p class="muted" id="cardHint">Think of the meaning, then reveal it.</p>
-   <div class="actions"><button id="revealBtn">Show meaning</button><button class="secondary" id="learnBtn">Mark as learned ✓</button></div>
-  </div>
-  <div class="actions"><button class="secondary" id="prevBtn">← Previous</button><button id="nextBtn">Next →</button></div>
- </section>
- <section id="quiz" class="hidden">
-  <div class="panel"><span class="muted" id="quizPosition">Question 1</span><h2 id="quizQuestion">What does “Abundant” mean?</h2><div id="quizOptions"></div><p id="quizFeedback" aria-live="polite"></p><button id="nextQuestion" class="hidden">Next question →</button></div>
- </section>
-</main>
-<footer>WordWise · Starter prototype · No account or subscription required</footer>
-<script>
-const sample=[
- {word:"Abundant",meaning:"Existing in large quantities; plentiful.",example:"The garden has abundant flowers.",synonym:"Plentiful"},
- {word:"Benevolent",meaning:"Kind, generous and willing to help others.",example:"The benevolent teacher helped every student.",synonym:"Kind"},
- {word:"Cautious",meaning:"Careful to avoid danger or mistakes.",example:"Be cautious when crossing the road.",synonym:"Careful"},
- {word:"Diligent",meaning:"Showing care and effort in your work.",example:"She is a diligent student.",synonym:"Hardworking"},
- {word:"Eloquent",meaning:"Fluent and persuasive in speaking or writing.",example:"He gave an eloquent speech.",synonym:"Expressive"}
-];
-let words=JSON.parse(localStorage.getItem("ww_words")||"null")||sample;
-let learned=new Set(JSON.parse(localStorage.getItem("ww_learned")||"[]"));
-let cardIndex=0,quizIndex=0,quizAnswered=false,selectedSection=0;
-const $=id=>document.getElementById(id);
-function save(){localStorage.setItem("ww_words",JSON.stringify(words));localStorage.setItem("ww_learned",JSON.stringify([...learned]));renderAll()}
-function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function renderAll(){
- $("totalCount").textContent=words.length;$("learnedCount").textContent=learned.size;$("remainingCount").textContent=Math.max(0,words.length-learned.size);
- let pct=words.length?Math.round(learned.size/words.length*100):0;$("progressText").textContent=pct+"% complete";$("progressBar").style.width=pct+"%";
- renderSections();renderWords();renderCard();
-}
-function renderSections(){
- let n=Number($("groupSize").value),count=Math.ceil(words.length/n);
- $("sectionGrid").innerHTML=count?Array.from({length:count},(_,i)=>`<div class="section-card ${i===selectedSection?"selected":""}" data-section="${i}"><strong>Section ${i+1}</strong><span class="muted">Words ${i*n+1}–${Math.min((i+1)*n,words.length)}</span></div>`).join(""):'<p class="muted">Upload a PDF to create sections.</p>';
- document.querySelectorAll("[data-section]").forEach(el=>el.onclick=()=>{selectedSection=Number(el.dataset.section);renderSections();showTab("words")});
-}
-function renderWords(){
- let n=Number($("groupSize").value),start=selectedSection*n,subset=words.slice(start,start+n);
- $("wordSub").textContent=`Section ${selectedSection+1} · ${subset.length} words`;
- $("wordList").innerHTML=subset.map((w,i)=>`<article class="word-card"><div class="row"><h3>${start+i+1}. ${escapeHTML(w.word)}</h3><span>${learned.has(w.word)?"✓":""}</span></div><p>${escapeHTML(w.meaning||"Meaning not available in the local dictionary.")}</p>${w.example?`<p><i>Example: ${escapeHTML(w.example)}</i></p>`:""}</article>`).join("")||'<p class="muted">No words in this section yet.</p>';
-}
-function renderCard(){
- if(!words.length){$("cardWord").textContent="No words yet";$("cardMeaning").textContent="Upload a PDF to begin.";return}
- cardIndex=Math.max(0,Math.min(cardIndex,words.length-1));let w=words[cardIndex];
- $("cardPosition").textContent=`Card ${cardIndex+1} of ${words.length}`;$("cardWord").textContent=w.word;$("cardMeaning").textContent=[w.meaning,w.example?"Example: "+w.example:"",w.synonym?"Synonym: "+w.synonym:""].filter(Boolean).join(" ");$("cardMeaning").classList.add("hidden");$("cardHint").classList.remove("hidden");$("revealBtn").textContent="Show meaning";
-}
-function showTab(name){document.querySelectorAll("main>section").forEach(s=>s.classList.add("hidden"));$(name).classList.remove("hidden");document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));if(name==="quiz")renderQuiz();if(name==="flashcards")renderCard();if(name==="words")renderWords()}
-document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
-$("groupSize").onchange=()=>{selectedSection=0;renderSections();renderWords()};
-$("revealBtn").onclick=()=>{$("cardMeaning").classList.toggle("hidden");$("cardHint").classList.toggle("hidden");$("revealBtn").textContent=$("cardMeaning").classList.contains("hidden")?"Show meaning":"Hide meaning"};
-$("prevBtn").onclick=()=>{cardIndex=(cardIndex-1+words.length)%words.length;renderCard()};
-$("nextBtn").onclick=()=>{cardIndex=(cardIndex+1)%words.length;renderCard()};
-$("learnBtn").onclick=()=>{if(words[cardIndex]){learned.add(words[cardIndex].word);save();cardIndex=(cardIndex+1)%words.length;renderCard()}};
-$("resetDemo").onclick=()=>{words=sample;learned.clear();save()};
-const quizSet=[
- {w:"Abundant",opts:["Rare","Plentiful","Difficult"],a:"Plentiful"},
- {w:"Benevolent",opts:["Angry","Kind and generous","Lazy"],a:"Kind and generous"},
- {w:"Diligent",opts:["Careless","Hardworking","Confused"],a:"Hardworking"}
-];
-function renderQuiz(){let q=quizSet[quizIndex%quizSet.length];quizAnswered=false;$("quizPosition").textContent=`Question ${(quizIndex%quizSet.length)+1} of ${quizSet.length}`;$("quizQuestion").textContent=`What does “${q.w}” mean?`;$("quizFeedback").textContent="";$("nextQuestion").classList.add("hidden");$("quizOptions").innerHTML=q.opts.map(o=>`<button class="option" data-answer="${escapeHTML(o)}">${escapeHTML(o)}</button>`).join("");document.querySelectorAll("[data-answer]").forEach(b=>b.onclick=()=>{if(quizAnswered)return;quizAnswered=true;let ok=b.dataset.answer===q.a;b.classList.add("chosen");$("quizFeedback").textContent=ok?"Correct! Well done.":"Not quite. Correct answer: "+q.a;$("quizFeedback").style.color=ok?"#218765":"#b54747";$("nextQuestion").classList.remove("hidden")})}
-$("nextQuestion").onclick=()=>{quizIndex++;renderQuiz()};
-$("pdfFile").addEventListener("change",async e=>{
- const file=e.target.files[0];if(!file)return;
- $("pdfStatus").textContent="Reading PDF…";
- try{
-  if(!window.pdfjsLib){
-   await new Promise((resolve,reject)=>{let s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";s.onload=resolve;s.onerror=reject;document.head.appendChild(s)});
-   pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  }
-  const data=await file.arrayBuffer(),pdf=await pdfjsLib.getDocument({data}).promise;let text="";
-  for(let p=1;p<=pdf.numPages;p++){let page=await pdf.getPage(p),content=await page.getTextContent();text+=" "+content.items.map(x=>x.str).join(" ")}
-  const stop=new Set(("the a an and or but if then than to of in on at for from by with is are was were be been being this that these those it its as into about over under after before not no yes can could should would will may might do does did have has had i you he she they we them his her their our your").split(" "));
-  let freq=new Map();for(let token of text.match(/[A-Za-z][A-Za-z'-]{2,}/g)||[]){let w=token.toLowerCase();if(!stop.has(w)&&! /^\d+$/.test(w))freq.set(w,(freq.get(w)||0)+1)}
-  let extracted=[...freq.entries()].sort((a,b)=>b[1]-a[1]).map(([word])=>({word:word[0].toUpperCase()+word.slice(1),meaning:"Meaning not yet added. Add a definition using your offline dictionary.",example:""}));
-  if(!extracted.length)throw new Error("No selectable text found. This may be a scanned PDF.");
-  words=extracted;learned.clear();cardIndex=0;selectedSection=0;save();$("pdfStatus").textContent=`Imported ${words.length} unique vocabulary words from ${pdf.numPages} page(s).`;showTab("words");
- }catch(err){$("pdfStatus").textContent="Could not extract PDF text: "+err.message+". If this is a scanned PDF, OCR is required."}
-});
-renderAll();
-</script>
-</body>
-</html>
